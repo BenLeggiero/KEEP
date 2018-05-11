@@ -8,9 +8,11 @@
 <!-- * **Discussion**: [KEEP #xx](https://github.com/Kotlin/KEEP/issues/xx). -->
 
 
+
 | Table of Contents |
 | :---------------- |
 | <ol><li>[Goal](#goal)</li><li>[Feedback](#feedback)</li><li>[Introduction](#introduction)</li><li>[Motivation](#motivation)</li><li>[Syntax](#syntax)<ol type=a><li>[Formal grammar](#formal-grammar)</li><li>[Sequence Literals](#sequence-literals)</li><li>[Dictionary Literals](#dictionary-literals)</li></ol></li><li>[Changes to stdlib](#changes-to-stdlib)</li><li>[Language Impact](#language-impact)</li><li>[Alternatives Considered](#alternatives-considered)</li></ol> |
+
 
 
 ## Goal ##
@@ -18,9 +20,11 @@
 To make collections easier to write, more expressive, and better able to take advantage of the typing system in Kotlin by adding collection literals to the language.
 
 
+
 ## Feedback ##
 
 Discussion of this proposal is held in [this issue](https://gitbub.com/Kotlin/KEEP/issues/xx).
+
 
 
 ## Introduction ##
@@ -43,15 +47,8 @@ val myHashMap: HashMap<String, List<String>> = ["Foo": ["Bar", "Baz"]]
 val myEmptyMutableMap: MutableMap<String> = [:]
 ```
 
-See [Syntax](#syntax) below for elaboration on what these mean.
+See [Syntax](#syntax) below for elaboration on what these mean. Note that dictionaries could have an [alternative syntax](#alternative-syntax) if the above syntax cannot be used.
 
-<!--
-// implicit List<Any>, just like listOf(1, 2, 3)
-// Explicit array of Lists of Ints, just like arrayOf<List<Int>>(listOf<Int>(1, 2), listOf<Int>(), listOf<Int>(3, 4, 5))
-
-// implicit Map<String, Any>, just like mapOf("A" to 1, "B" to true, "C" to "three")
-// Explicit HashMap of String to Lists of Strings, just like hashMapOf<String, List<String>>("Foo" to listOf<String>("Bar", "Baz"))
--->
 
 
 ## Motivation ##
@@ -62,12 +59,11 @@ See [Syntax](#syntax) below for elaboration on what these mean.
 * Kotlin currently supports identical sequence literal syntax in the arguments of annotations
 
 
-## Syntax ##
-<!-- see also https://github.com/BenLeggiero/KEEP/blob/collection-literals/proposals/destructuring-in-parameters.md -->
 
-<!-- Maps are like in Groovy, Swift -->
+## Syntax ##
 
 ### Formal grammar ###
+
 This builds atop the formal Kotlin grammar as laid out in [the Kotlin language grammar reference](https://kotlinlang.org/docs/reference/grammar.html).
 
 
@@ -138,14 +134,13 @@ dictionaryItem
 ```
 
 
-### Implementation ###
 
+### Implementation ###
 
 ### Typing ###
 
 This leverages the powerful type inferrence of Kotlin to determine which type the literal represents. If none can be inferred, sequence literals are assumed to be `List`s, and dictionary literals are assumed to be `Map`s. The exact underlying implementations of these are unimportant, and the backups can be implemented in stdlib as global operator functions.
 
-<!-- https://gist.github.com/BenLeggiero/1582a959592cadcfee2a0beba3820084#gistcomment-2435291 -->
 
 
 ### Sequence Literals ###
@@ -258,6 +253,8 @@ Dictionary literals represent collections of key-value pairs.
 > * 1 pair: `[ a : b ]`
 > * Multiple pairs: `[ a : b, c : d, e : f ]`
 
+<sup>(Note that there is [an alternate syntax](#alternative-syntax) if this cannot be achieved)</sup>
+
 This has very similar semantics to sequence literals. The default type if none is specified is `Map`, just like the `mapOf` function today, where its generic types are inferred.
 
 ```Kotlin
@@ -350,6 +347,18 @@ operator fun <Key, Value> dictionaryLiteral(first: Pair<Key, Value>, vararg rest
 ```
 
 
+#### Alternative Syntax ####
+
+In the event that the `:` cannot be used to separate a key form a value for any reason, `=` is
+acceptable. That said, this would diverge from the syntax of dictionary literals in all of Kotlin's contemporaries.
+
+```Kotlin
+val myMap = ["A" = 1, "B" = true, "C" = "three"]
+val myHashMap: HashMap<String, List<String>> = ["Foo" = ["Bar", "Baz"]]
+val myEmptyMutableMap: MutableMap<String> = [=]
+```
+
+
 
 ## Changes to stdlib ##
 
@@ -403,7 +412,8 @@ The Kotlin Standard Library should add sequence literal operator functions which
 The following alternative syntaxes were also mentioned in various discussions:
 
  * JavaScript style dictionaries, like `{ a : b, c : d }`
-   * Less consistent with accessor syntax (e.g. `foo[bar]`), harder to distinguish from existing syntax (like functions)
+   * Inconsistent with the current association of square brackets with collections, where curly
+     braces are associated with scopes
  * Prefix dictionaries with a `#` symbol, like `#[ a : b, c : d ]`
    * Seems to add unnecessary code with no apparent benefit
  * Make the default type for sequences an `Array` instead of a `List`
