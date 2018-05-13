@@ -2,10 +2,12 @@
 
 * **Type**: Design proposal
 * **Author**: [Ben Leggiero](https://github.com/BenLeggiero)
-* **Contributors**: [alanfo](https://github.com/alanfo), [Andrey Mischenko](https://github.com/gildor), and many others on [the GitHub Gist](https://gist.github.com/BenLeggiero/1582a959592cadcfee2a0beba3820084) and in the [#language-proposals](https://kotlinlang.slack.com/messages/language-proposals/) Slack channel
-* **Status**: First Draft
+* **Contributors**: [alanfo](https://github.com/alanfo), [Andrey Mischenko](https://github.com/gildor), and many others
+  on [the GitHub Gist](https://gist.github.com/BenLeggiero/1582a959592cadcfee2a0beba3820084) and in the
+  [#language-proposals](https://kotlinlang.slack.com/messages/language-proposals/) Slack channel
+* **Status**: Under consideration
 * **Prototype**: Not started
-<!-- * **Discussion**: [KEEP #xx](https://github.com/Kotlin/KEEP/issues/xx). -->
+* **Discussion**: [KEEP #112](https://github.com/Kotlin/KEEP/issues/112)
 
 
 
@@ -17,19 +19,23 @@
 
 ## Goal ##
 
-To make collections easier to write, more expressive, and better able to take advantage of the typing system in Kotlin by adding collection literals to the language.
+To make collections easier to write, more expressive, and better able to take advantage of the typing system in Kotlin
+by adding collection literals to the language.
 
 
 
 ## Feedback ##
 
-Discussion of this proposal is held in [this issue](https://gitbub.com/Kotlin/KEEP/issues/xx).
+Discussion of this proposal is held in [this issue](https://gitbub.com/Kotlin/KEEP/issues/112).
 
 
 
 ## Introduction ##
 
-This proposal introduces two new syntaxes: A literal for sequences and a literal for dictionaries. These both would be customizable via two new operator functions, and the creation of them in code would thus have the same type-ambiguity-resolution as if said functions were called as themselves rather than as operators for these new literals.
+This proposal introduces two new syntaxes: A literal for sequences and a literal for dictionaries. These both would be
+customizable via two new operator functions, and the creation of them in code would thus have the same
+type-ambiguity-resolution as if said functions were called as themselves rather than as operators for these new
+literals.
 
 Sequence literals would look like this:
 
@@ -47,7 +53,8 @@ val myHashMap: HashMap<String, List<String>> = ["Foo": ["Bar", "Baz"]]
 val myEmptyMutableMap: MutableMap<String> = [:]
 ```
 
-See [Syntax](#syntax) below for elaboration on what these mean. Note that dictionaries could have an [alternative syntax](#alternative-syntax) if the above syntax cannot be used.
+See [Syntax](#syntax) below for elaboration on what these mean. Note that dictionaries could have an
+[alternative syntax](#alternative-syntax) if the above syntax cannot be used.
 
 
 
@@ -55,8 +62,10 @@ See [Syntax](#syntax) below for elaboration on what these mean. Note that dictio
 
 * The current approach (stdlib global factory methods) is very wordy
 * The current approach does not leverage the powerful type inference features of Kotlin
-* Other modern languages (Python, Groovy, Swift, ECMAScript, etc.) have collection literals of a similar syntax to this proposal
+* Other modern languages (Python, Groovy, Swift, ECMAScript, etc.) have collection literals similar to this proposal
 * Kotlin currently supports identical sequence literal syntax in the arguments of annotations
+* This would provide Kotlin library writers a standard, more expressive way to allow their users to instantiate custom
+  collection types
 
 
 
@@ -133,13 +142,18 @@ dictionaryItem
     ;
 ```
 
+<sup>Dictionaries may have an [alternative syntax](#alternative-syntax) if the above syntax cannot be used.</sup>
+
 
 
 ### Implementation ###
 
 ### Typing ###
 
-This leverages the powerful type inferrence of Kotlin to determine which type the literal represents. If none can be inferred, sequence literals are assumed to be `List`s, and dictionary literals are assumed to be `Map`s. The exact underlying implementations of these are unimportant, and the backups can be implemented in stdlib as global operator functions.
+This leverages the powerful type inference of Kotlin to determine which type the literal represents. If none can be
+inferred, sequence literals are assumed to be `List`s, and dictionary literals are assumed to be `Map`s. The exact
+underlying implementation types of these are unimportant, and the creation of them can be implemented in stdlib as
+global operator functions.
 
 
 
@@ -151,7 +165,8 @@ Sequence literals represent linear collections.
 > * 1 element: `[ a ]`
 > * Multiple elements: `[ a, b, c ]`
 
-When no type is specified, the default type of `List` is used, and its generic element type is inferred from the literal's contents, just like the `listOf` functions do today:
+When no type is specified, the default type of `List` is used, and its generic element type is inferred from the
+literal's contents, just like the `listOf` functions do today:
 
 ```Kotlin
 val a1 = ["a", "b", "c"] // List<String>
@@ -162,7 +177,8 @@ val a5 = [] // Compiler error: type cannot be inferred (just like `listOf()`). S
 val a6 = [[1], [2, 3], [4, 5, 6]] // List<List<Int>>
 ```
 
-When a type is specified, and that type implements the proper operator function [(see below)](#custom-sequence-types), that type is used:
+When a type is specified, and that type implements the proper operator function [(see below)](#custom-sequence-types),
+that type is used:
 
 ```Kotlin
 val b1: Array<String> = ["a", "b", "c"] // Array<String>
@@ -175,20 +191,24 @@ val b7: MyCustomSequence = [foo, bar, baz] // MyCustomSequence (see below)
 val b8: IntArray = [1, 2, 3] // IntArray
 ```
 
-Of course, this means that the type can be implied at the call-site when using functions which can accept a sequence literal, or when returning from a function with an explicit return type, etc.:
+Of course, this means that the type can be implied at the call-site when using functions which can accept a sequence
+literal, or when returning from a function with an explicit return type, etc.:
 
 ```Kotlin
 takesStringArray(["a", "b", "c"])
 takes2DList([["d", "e"], []])
 takesStringArray(["a", 2, false]) // Compiler error: `2` and `false` are not `String`s
 takesCustomSequence([foo, bar, baz])
-takesAmbiguousType(["1", true, 3] as Set<Any>) // To resolve ambiguity, use the `as` keyword
+takesAmbiguousType(["1", true, 3] as Set<Any>) // The `as` keyword is one way to resolve compile-time ambiguity
 ```
 
 
 #### Custom Sequence Types ####
 
-Any type `Type` can be represented by this syntax by implementing the `operator fun sequenceLiteral`. This operator function can take zero, one, multiple, or variable number of arguments of type `Element`, and must return `Type`, where `Element` is the type of the sequence's elements (this can be generic). This must be implemented via a top-level function. `Type` does not necessarily have to implement the `Collection` interface.
+Any type `Type` can be represented by this syntax by implementing the `operator fun sequenceLiteral`. This operator
+function can take zero, one, multiple, or variable number of arguments of type `Element`, and must return `Type`, where
+`Element` is the type of the sequence's elements (this can be generic). This must be implemented via a top-level
+function. `Type` does not necessarily have to implement the `Collection` interface.
 
 [This proposal recommends](#changes-to-stdlib) that the stdlib include many of these in order to make it feel more natural.
 
@@ -233,7 +253,9 @@ operator fun sequenceLiteral(a: EntryKey, b: EntryKey)
 // If there were no such function taking `vararg`s, then only sequences of these sizes would be allowed.
 ```
 
-These are allowed to co-exist in the same codebase, just as the functions would be without the `operator` keyword, to grant the library writer the ability to optimize for certain scenarios, or to restrict the number of elements allowed in a sequence.
+These are allowed to co-exist in the same codebase, just as the functions would be without the `operator` keyword, to
+grant the library writer the ability to optimize for certain scenarios, or to restrict the number of elements allowed
+in a sequence.
 
 As another example, if one made a non-empty-list type, it might use an operator function like this:
 
@@ -255,7 +277,8 @@ Dictionary literals represent collections of key-value pairs.
 
 <sup>(Note that there is [an alternate syntax](#alternative-syntax) if this cannot be achieved)</sup>
 
-This has very similar semantics to sequence literals. The default type if none is specified is `Map`, just like the `mapOf` function today, where its generic types are inferred.
+This has very similar semantics to sequence literals. The default type if none is specified is `Map`, just like the
+`mapOf` function today, where its generic types are inferred.
 
 ```Kotlin
 val d1 = ["a" : "b", "c" : "d"] // Map<String, String>
@@ -282,13 +305,16 @@ takesMutableMapOfStringToString(["a" : "b", "c" : "d"])
 takesMapOfIntToAny([1 : 2, 3 : 4])
 takesHashMap([:])
 takesCustomDictionary([foo : bar, baz : qux])
-takesAmbiguousType(["1" : true, "3" : "blue"] as HashMap<String : Any>) // To resolve ambiguity, use the `as` keyword
+takesAmbiguousType(["1" : true, "3" : "blue"] as HashMap<String : Any>) // The `as` keyword is one way to resolve compile-time ambiguity
 ```
 
 
 #### Custom Dictionary Types ####
 
-Any type `Type` can be represented by this syntax by implementing the `operator fun dictionaryLiteral`. This operator function can take zero, one, multiple, or a variable number of arguments of type `Pair<Key, Value>`, where `Key` is the type of the dictionary's keys, and `Value` is the type of its values (these can be generics). This must be implemented via a top-level function. `Type` does not necessarily have to implement the `Map` nor `Collection` interface.
+Any type `Type` can be represented by this syntax by implementing the `operator fun dictionaryLiteral`. This operator
+function can take zero, one, multiple, or a variable number of arguments of type `Pair<Key, Value>`, where `Key` is the
+type of the dictionary's keys, and `Value` is the type of its values (these can be generics). This must be implemented
+via a top-level function. `Type` does not necessarily have to implement the `Map` nor `Collection` interface.
 
 [This proposal recommends](#changes-to-stdlib) that the stdlib include many of these in order to make it feel more natural.
 
@@ -336,7 +362,9 @@ operator fun dictionaryLiteral(ab: Pair<EntryKey, *>, cd: Pair<EntryKey, *>)
 // If there were no such function taking `vararg`s, then only dictionaries of these sizes would be allowed.
 ```
 
-These are allowed to co-exist in the same codebase, just as the functions would be without the `operator` keyword, to grant the library writer the ability to optimize for certain scenarios, or to restrict the number of pairs allowed in a dictionary.
+These are allowed to co-exist in the same codebase, just as the functions would be without the `operator` keyword, to
+grant the library writer the ability to optimize for certain scenarios, or to restrict the number of pairs allowed in a
+dictionary.
 
 As another example, if one made a non-empty-map type, it might use an operator function like this:
 
@@ -362,7 +390,9 @@ val myEmptyMutableMap: MutableMap<String> = [=]
 
 ## Changes to stdlib ##
 
-The Kotlin Standard Library should add sequence literal operator functions which perform the same function as the following (or simply call the following). This proposal also recommends that these existing functions be marked as deprecated (in which case the following should call the new ones):
+The Kotlin Standard Library should add sequence literal operator functions which perform the same function as the
+following (or simply call the following). This proposal also recommends that these existing functions be marked as
+deprecated (in which case the following should call the new ones):
 
  * `emptyList()` and `listOf()`
  * `listOf(vararg elements: T)`
@@ -419,4 +449,7 @@ The following alternative syntaxes were also mentioned in various discussions:
  * Make the default type for sequences an `Array` instead of a `List`
    * Would clash with existing Kotlin paradigms and stdlib functions
  * Use `to` instead of `:` in dictionary literals
-   * No natural way to distonguish a literal for a `List<Pair<*, *>>` from a `Map<*, *>`
+   * No natural way to distinguish a literal for a `List<Pair<*, *>>` from a `Map<*, *>`
+ * Allow a builder pattern as an argument to the sequence- and dictionary-literal operator functions
+   * A good idea, but not fleshed-out. Acceptance and implementation of this proposal does not
+     prevent this feature from being added in the future.
